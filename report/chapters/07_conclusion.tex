@@ -1,0 +1,21 @@
+%% 07_conclusion.tex -- Conclusion and Future Work
+%% -----------------------------------------------------------------------------
+
+\chapter{Conclusion and Future Work}
+
+\section{Summary of Achievements}
+In this project, we designed, implemented, and empirically analyzed a specialized Genetic Algorithm optimization framework tailored for large-scale academic timetabling under strict institutional constraints. Across 60 courses, 480 sections, 960 sessions, 60 faculty members, and 35 physical classrooms, our approach yielded significant structural achievements:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Robust Constraint Formulation:} Formulated an exhaustive mathematical representation encompassing 6 hard constraints, 4 soft constraints, and 2 bonus faculty preference objectives.
+  \item \textbf{Section-Preserving Genetic Design:} Developed domain-specific genetic operators, including section-preserving uniform crossover and valid day-pair mutation, which inherently preserve non-adjacent lecture day constraints (H2) and room size feasibility (H1).
+  \item \textbf{Multi-Tiered Fitness Optimization:} Implemented an adaptive, multi-tiered penalty fitness function that reliably eliminates hard physical clashes while refining faculty satisfaction and spatial efficiency.
+  \item \textbf{Reproducible and Extensible Framework:} Provided a fully documented Python codebase (`main.py`) that exports complete timetables to standard tabular formats and convergence plots.
+\end{enumerate}
+
+\section{Future Improvements}
+Building upon the current genetic framework, several promising avenues exist for further enhancement:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Hybrid Memetic Search (GA + Local Search):} Integrating local search heuristics (such as Simulated Annealing or Tabu Search hill-climbing) between generations to systematically repair remaining room and instructor conflicts.
+  \item \textbf{Island-Model Parallelism:} Distributing subpopulations across multiple processor cores with periodic migration to enhance diversity and accelerate convergence on complex instances.
+  \item \textbf{Interactive Web Dashboard:} Developing a browser-based visual timetable inspector allowing academic administrators to manually swap sections while visualizing live constraint telemetry.
+\end{itemize}

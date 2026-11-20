@@ -1,0 +1,155 @@
+%% preamble.tex -- Prism Teal Style & HCMUT Standard Settings (English)
+%% Tailored for Perplexity Prism / Overleaf with Text Overflow Prevention
+%% -----------------------------------------------------------------------------
+
+%% -- Encoding and Typography
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{microtype}         %% Prevents overfull \hbox
+\usepackage{xurl}              %% Clean URL and code path breaking
+
+%% -- Text Margins & Overflow Controls (Solves "chữ hay bị văng ra ngoài")
+\usepackage[a4paper,
+            top=2.5cm, bottom=2.5cm,
+            left=2.5cm, right=2.0cm,
+            headheight=1.6cm, headsep=0.5cm]{geometry}
+
+\emergencystretch=3em          %% Prevents words sticking into the right margin
+\hyphenpenalty=500
+\tolerance=1500
+\hfuzz=1pt
+
+%% -- Prism / HCMUT Teal Color Palette
+\usepackage{xcolor}
+\definecolor{PrismHeader}{HTML}{1A6B72}   %% Deep Teal  - Titles, table headers, rules
+\definecolor{PrismLabel} {HTML}{D6EDEF}   %% Light Teal - Labels, highlights, code background
+\definecolor{PrismRule}  {HTML}{1A6B72}   %% Rule color
+\definecolor{PrismWhite} {HTML}{FFFFFF}   %% White text
+\definecolor{CodeComment}{HTML}{6B7280}   %% Gray comments
+\definecolor{CodeKeyword}{HTML}{0E7490}   %% Cyan/Teal keyword
+\definecolor{PrismAlert} {HTML}{DC2626}   %% Red alert
+\definecolor{PrismSuccess}{HTML}{10B981}  %% Green success
+
+%% -- Headers and Footers
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{%
+  \includegraphics[height=1.0cm]{figures/hcmut_logo.png}%
+  \hspace{8pt}%
+  \begin{tabular}[b]{@{}l@{}}
+    {\small\textbf{Ho Chi Minh City University of Technology}}\\
+    {\footnotesize Faculty of Computer Science and Engineering}
+  \end{tabular}}
+\fancyfoot[L]{\small\textit{CO3061 --- Class Scheduling with Genetic Algorithm (HW3)}}
+\fancyfoot[R]{\small Page \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyhead[L]{%
+    \includegraphics[height=1.0cm]{figures/hcmut_logo.png}%
+    \hspace{8pt}%
+    \begin{tabular}[b]{@{}l@{}}
+      {\small\textbf{Ho Chi Minh City University of Technology}}\\
+      {\footnotesize Faculty of Computer Science and Engineering}
+    \end{tabular}}
+  \fancyfoot[L]{\small\textit{CO3061 --- Class Scheduling with Genetic Algorithm (HW3)}}
+  \fancyfoot[R]{\small Page \thepage}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+%% -- Robust Tables (Autowrapped, No Margin Overflow)
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{multirow}
+\renewcommand{\arraystretch}{1.35}
+
+%% Pre-configured wrapped column types
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+
+%% -- Lists
+\usepackage{enumitem}
+\setlist{noitemsep, topsep=3pt, parsep=1pt}
+
+%% -- Graphics & Captions
+\usepackage{graphicx}
+\graphicspath{{figures/}{../figures/}}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small, labelfont={bf,color=PrismHeader}}
+
+%% -- Code Listings (Wrapped lines, strictly inside margins)
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\scriptsize,
+  backgroundcolor=\color{PrismLabel!35},
+  keywordstyle=\color{CodeKeyword}\bfseries,
+  commentstyle=\color{CodeComment}\itshape,
+  stringstyle=\color{PrismHeader},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  stepnumber=1,
+  numbersep=8pt,
+  frame=single,
+  frameround=tttt,
+  rulecolor=\color{PrismHeader},
+  breaklines=true,
+  breakatwhitespace=false,
+  tabsize=2,
+  showstringspaces=false,
+  postbreak=\mbox{\textcolor{gray}{$\hookrightarrow$}\space}
+}
+
+%% -- tcolorbox for highlighted blocks
+\usepackage[most]{tcolorbox}
+\tcbset{
+  colback=PrismLabel!20,
+  colframe=PrismHeader,
+  coltitle=PrismWhite,
+  fonttitle=\bfseries\small,
+  arc=2mm,
+  boxrule=1pt,
+  left=6pt, right=6pt, top=6pt, bottom=6pt
+}
+
+%% -- Section Formatting
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\color{PrismHeader}}
+  {\filleft\fontsize{40pt}{45pt}\selectfont\color{PrismHeader!40}\thechapter}
+  {1ex}
+  {\titlerule[1.5pt]\vspace{1ex}\huge\filright}
+  [\vspace{1ex}\titlerule]
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{PrismHeader}}
+  {\thesection}{1em}{}[\color{PrismHeader}\titlerule]
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{PrismHeader!90!black}}
+  {\thesubsection}{1em}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries\color{PrismHeader!80!black}}
+  {\thesubsubsection}{1em}{}
+
+%% -- Hyperlinks
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=PrismHeader,
+  citecolor=PrismHeader,
+  urlcolor=CodeKeyword,
+  pdftitle={Homework 3: Class Scheduling using Genetic Algorithm},
+  pdfauthor={Group 4 - CC01 - HCMUT}
+}

@@ -1,0 +1,36 @@
+%% 03_genetic_operators.tex -- Genetic Operators and Selection Mechanisms
+%% -----------------------------------------------------------------------------
+
+\chapter{Genetic Operators}
+
+\section{Selection: Tournament Selection}
+To select high-fitness parents while preventing premature convergence caused by super-fit individuals dominating early generations, we utilize \textbf{Tournament Selection} with tournament size $k = 5$.
+At each selection step, $k$ candidates are sampled uniformly at random from the population, and the candidate with the highest fitness is chosen:
+\begin{equation}
+  P = \arg\max_{c \in \mathcal{T}_{sub}} \text{Fitness}(c), \quad |\mathcal{T}_{sub}| = k
+\end{equation}
+This mechanism provides an easily tunable selection pressure: smaller $k$ preserves diversity, whereas larger $k$ accelerates convergence towards local optima.
+
+\section{Crossover: Section-Preserving Uniform Crossover}
+Standard single-point or two-point crossover applied to a raw 960-gene array risks splitting the paired sessions of a section across different parents, breaking non-adjacent day guarantees (H2) and scattering instructor assignments.
+
+To resolve this, we implement \textbf{Section-Preserving Uniform Crossover}. Crossover decisions are made at the section level rather than the individual session level:
+\begin{itemize}[leftmargin=1.5em]
+  \item For each section $sec_k \in \{0, \dots, 479\}$, let $(s_{k, 1}, s_{k, 2})$ be its session pair.
+  \item Generate a uniform random probability $u \sim \mathcal{U}(0, 1)$.
+  \item If $u < 0.5$, Child 1 inherits both genes $(g_{k, 1}, g_{k, 2})$ from Parent 1, and Child 2 inherits from Parent 2.
+  \item Otherwise ($u \ge 0.5$), Child 1 inherits both genes from Parent 2, and Child 2 inherits from Parent 1.
+\end{itemize}
+This operator preserves genetic building blocks (schemata) that successfully resolve section-level constraints while shuffling global allocations between parents.
+
+\section{Mutation: Multi-Parametric Mutation}
+With probability $p_m \in [0.03, 0.08]$ per section, a chromosome undergoes targeted stochastic modification:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Day-Pair Swap (30\% chance):} Re-samples a new valid day pair $(d_1, d_2) \in \mathcal{P}_{valid}$ for the section. This alters temporal placement without violating non-adjacent requirements.
+  \item \textbf{Timeslot Perturbation (40\% chance):} Randomly reassigns the daily period $t \in \{0..5\}$ for one of the section's sessions to alleviate room or instructor collisions.
+  \item \textbf{Classroom Migration (40\% chance):} Selects a new classroom from the compatible room set, moving the session away from a congested room.
+  \item \textbf{Instructor Reassignment (30\% chance):} Re-allocates the section to another qualified professor to relieve professor overload ($>20$ sessions) or resolve simultaneous teaching clashes.
+\end{enumerate}
+
+\section{Elitism}
+To protect the best-discovered schedules from destructive crossover and mutation, we enforce an elitism policy where the top $E = 3$ chromosomes are copied directly into the subsequent generation unchanged. This guarantees monotonic non-decreasing trajectory of the maximum population fitness.

@@ -1,0 +1,40 @@
+%% 02_ga_representation.tex -- Chromosome Representation & Encoding Scheme
+%% -----------------------------------------------------------------------------
+
+\chapter{Genetic Algorithm Representation}
+
+\section{Chromosome Encoding Scheme}
+A pivotal design decision in applying Genetic Algorithms to constraint satisfaction problems is selecting an encoding that naturally restricts the search space without introducing unnecessary permutation overhead.
+
+We adopt an \textbf{Integer-Vector Gene Representation} indexed directly by the session identifier $s_i \in \{0, 1, \dots, 959\}$. Each gene is a 4-tuple:
+\begin{equation}
+  \mathbf{g}_i = \langle d_i, t_i, r_i, p_i \rangle
+\end{equation}
+where $d_i \in \{0..4\}$ denotes the assigned weekday, $t_i \in \{0..5\}$ denotes the daily timeslot, $r_i \in \{0..34\}$ denotes the classroom, and $p_i \in \{0..59\}$ denotes the professor. A complete chromosome $\mathbf{C}$ is thus an ordered array of 960 gene tuples:
+\begin{equation}
+  \mathbf{C} = \big[ \mathbf{g}_0, \mathbf{g}_1, \dots, \mathbf{g}_{959} \big] \in (\mathcal{D} \times \mathcal{T} \times \mathcal{R} \times \mathcal{P})^{960}
+\end{equation}
+
+\begin{figure}[H]
+  \centering
+  \begin{tcolorbox}[colback=PrismLabel!15, colframe=PrismHeader, width=0.95\linewidth, title=Chromosome Structural Schema]
+    \centering
+    \small
+    \textbf{Section 001 (Course $c_{01}$):} $\big[ \overbrace{(d=0, t=1, r=12, p=4)}^{\text{Session 0}} \quad \vert \quad \overbrace{(d=3, t=2, r=14, p=4)}^{\text{Session 1}} \big]$\\
+    \vspace{2pt}
+    \textbf{Section 002 (Course $c_{01}$):} $\big[ \underbrace{(d=1, t=4, r=05, p=7)}_{\text{Session 2}} \quad \vert \quad \underbrace{(d=4, t=5, r=05, p=7)}_{\text{Session 3}} \big] \quad \dots$
+  \end{tcolorbox}
+  \caption{Gene Pairing and Chromosome Layout}
+  \label{fig:chromosome_schema}
+\end{figure}
+
+\section{Smart Initialization Strategy}
+Random initialization across unconstrained Cartesian domains typically yields chromosomes with an overwhelming number of fundamental constraint violations. To accelerate convergence and prevent the algorithm from wasting search budget on trivial violations:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Guaranteed Day Separation (H2 by Construction):}
+  For each section with sessions $(s_{k, 1}, s_{k, 2})$, the initialization routine samples directly from the pre-computed set of valid non-adjacent day pairs $\mathcal{P}_{valid} = \{(0, 2), (0, 3), (0, 4), (1, 3), (1, 4), (2, 4)\}$. Consequently, initial chromosomes have \textbf{zero H2 violations} at generation 0.
+  \item \textbf{Capacity-Aware Classroom Selection (H1 Reduction):}
+  Instead of uniformly picking from all 35 rooms, initial room candidates are filtered according to $\mathcal{R}_{compatible}(s_i) = \{r \in \mathcal{R} \mid \text{Size}(r) \ge s_{sec}(s_i)\}$, sharply reducing room-size mismatch penalties.
+  \item \textbf{Instructor Section Binding:}
+  Both lectures of the same section are initialized with the same professor to maintain course delivery coherence, while balancing total instructor loads towards the target mean of 16 sessions.
+\end{enumerate}

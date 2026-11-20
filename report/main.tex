@@ -1,0 +1,32 @@
+\documentclass[12pt,a4paper]{report}
+
+\input{preamble}
+
+\begin{document}
+
+%% ── Cover Page & Group Workload Table ───────────────────────────────────────
+\input{chapters/00_cover}
+
+%% ── Table of Contents & Lists ───────────────────────────────────────────────
+\tableofcontents
+\newpage
+
+\listoffigures
+\newpage
+
+\listoftables
+\newpage
+
+%% ── Main Chapters ───────────────────────────────────────────────────────────
+\input{chapters/01_problem_formulation}
+\input{chapters/02_ga_representation}
+\input{chapters/03_genetic_operators}
+\input{chapters/04_fitness_function}
+\input{chapters/05_implementation}
+\input{chapters/06_experimental_results}
+\input{chapters/07_conclusion}
+
+%% ── References ─────────────────────────────────────────────────────────────
+\input{chapters/08_references}
+
+\end{document}

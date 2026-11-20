@@ -1,0 +1,57 @@
+%% 04_fitness_function.tex -- Multi-Objective Fitness Function & Penalty Modeling
+%% -----------------------------------------------------------------------------
+
+\chapter{Fitness Function Formulation}
+
+\section{Design Rationale}
+In genetic timetabling, the fitness function serves as the primary gradient guiding stochastic search. Because real-world class scheduling involves multiple competing objectives with strict priority boundaries, we formulate a \textbf{Multi-Tiered Penalty Fitness Function} where:
+\begin{itemize}[leftmargin=1.5em]
+  \item Hard constraint violations incur massive penalties ($W_{hard} \gg W_{soft}$) so that infeasible solutions cannot outscore feasible ones.
+  \item Soft constraint penalties drive qualitative timetable enhancement once feasibility is approached.
+  \item Bonus incentives provide a positive gradient rewarding faculty satisfaction and qualified teaching assignments.
+\end{itemize}
+
+\section{Mathematical Formulation}
+Let $\mathbf{C}$ be a candidate chromosome. We evaluate the total penalty cost:
+\begin{equation}
+  \Phi(\mathbf{C}) = W_{hard} \cdot \mathcal{V}_{hard}(\mathbf{C}) + W_{soft} \cdot \mathcal{P}_{soft}(\mathbf{C}) - W_{bonus} \cdot \mathcal{R}_{bonus}(\mathbf{C})
+\end{equation}
+where:
+\begin{align}
+  \mathcal{V}_{hard} &= \sum_{i=1}^{6} v_{H_i} = v_{H_1} + v_{H_2} + v_{H_3} + v_{H_4} + v_{H_5} + v_{H_6} \\
+  \mathcal{P}_{soft} &= \sum_{j=1}^{4} w_{S_j} \cdot p_{S_j} = 1.0 \cdot p_{S_1} + 2.0 \cdot p_{S_2} + 1.0 \cdot p_{S_3} + 0.5 \cdot p_{S_4} \\
+  \mathcal{R}_{bonus} &= r_{B_1} - 0.2 \cdot v_{B_2}
+\end{align}
+
+To ensure numerical stability and map the minimization problem into a strictly positive maximization metric suitable for selection operators, the final fitness score $F(\mathbf{C})$ is defined as:
+\begin{equation}
+  \label{eq:fitness}
+  F(\mathbf{C}) = \frac{K}{1.0 + \max\big(0, \, \Phi(\mathbf{C})\big)}
+\end{equation}
+with scaling constant $K = 1000.0$.
+
+\section{Weight Parameter Calibration}
+Table~\ref{tab:fitness_weights} outlines the calibrated weights used in our optimization engine.
+
+\begin{table}[H]
+  \centering
+  \small
+  \caption{Fitness Function Penalty Weights and Scaling Parameters}
+  \label{tab:fitness_weights}
+  \begin{tabularx}{\linewidth}{L{3.2cm} C{2.2cm} C{2.5cm} X}
+    \toprule
+    \rowcolor{PrismHeader}
+    \color{PrismWhite}\textbf{Constraint Tier} & 
+    \color{PrismWhite}\textbf{Notation} & 
+    \color{PrismWhite}\textbf{Default Weight} & 
+    \color{PrismWhite}\textbf{Optimization Rationale} \\
+    \midrule
+    Hard Constraints & $W_{hard}$ & 200.0 / clash & Imposes dominant selection pressure to eliminate room/time collisions. \\
+    S1 Idle Gaps & $w_{S_1}$ & 1.0 / empty slot & Compacts professor schedules on active teaching days. \\
+    S2 Half-Day Mix & $w_{S_2}$ & 2.0 / occurrence & Discourages instructors teaching both morning and afternoon. \\
+    S3 Course Mix & $w_{S_3}$ & 1.0 / section & Groups course sessions into unified morning/afternoon blocks. \\
+    S4 Capacity Waste & $w_{S_4}$ & 0.5 / excess tier & Encourages matching room sizes to section enrollment tiers. \\
+    B1 Fav Course & $W_{bonus}$ & 5.0 / instructor & Incentivizes assigning at least one preferred course per professor. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}

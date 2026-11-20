@@ -1,0 +1,53 @@
+%% 05_implementation.tex -- System Architecture and Implementation Details
+%% -----------------------------------------------------------------------------
+
+\chapter{Implementation Details}
+
+\section{System Architecture}
+The implementation is organized into a clean, modular Python architecture in `main.py`. The system decouples problem generation, chromosome state representation, constraint verification, and the evolutionary optimization engine.
+
+\begin{figure}[H]
+  \centering
+  \begin{tcolorbox}[colback=PrismWhite, colframe=PrismHeader, width=0.95\linewidth, title=System Flow Architecture]
+    \centering
+    \small
+    \begin{enumerate}[leftmargin=2.0em]
+      \item \textbf{ProblemInstance Generator:} Seeds courses, rooms, sections, and professor preferences with fixed reproducibility.
+      \item \textbf{Initial Population Builder:} Generates $N_{pop}$ chromosomes with smart day-separation and room compatibility.
+      \item \textbf{Evaluation Engine:} Evaluates $\mathcal{V}_{hard}$, $\mathcal{P}_{soft}$, and $\mathcal{R}_{bonus}$ in $\mathcal{O}(N_s)$ linear time using hash-map occupancy tables.
+      \item \textbf{Reproduction Loop:} Applies Tournament Selection, Section-Preserving Crossover, and Multi-Parametric Mutation.
+      \item \textbf{Output Exporters:} Serializes final timetables to CSV and generates matplotlib convergence plots.
+    \end{enumerate}
+  \end{tcolorbox}
+  \caption{Architectural Pipeline of the Genetic Algorithm Engine}
+  \label{fig:pipeline_architecture}
+\end{figure}
+
+\section{Key Data Structures}
+To satisfy computational performance when evaluating populations over dozens or hundreds of generations, we utilize optimized dictionary and array indexing:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Room Occupancy Table:} A hash table mapping `(room_id, day, timeslot) -> count`. Any key with `count > 1` directly signals an H6 room collision.
+  \item \textbf{Instructor Occupancy Table:} A hash table mapping `(professor_id, day, timeslot) -> count` to immediately catch H3 simultaneous conflicts.
+  \item \textbf{Section Pairs Lookup:} A static map `section_id -> (s1_id, s2_id)` providing instantaneous access to paired session genes during crossover, mutation, and H2 verification.
+\end{itemize}
+
+\section{Code Listing Sample}
+Listing~\ref{lst:evaluator_snippet} displays a core segment of the evaluation engine from `main.py`.
+
+\begin{lstlisting}[language=Python, caption={Core Evaluation Loop in `ScheduleEvaluator`}, label={lst:evaluator_snippet}]
+# Check section-level non-adjacent day constraint (H2)
+for sec_id, (s1_id, s2_id) in inst.section_to_sessions.items():
+    g1 = chromosome.genes[s1_id]
+    g2 = chromosome.genes[s2_id]
+    if g1.day == g2.day or abs(g1.day - g2.day) <= 1:
+        m.h2_day_separation_violations += 1
+
+# Check room and professor collisions (H3, H6)
+for count in room_time_occupancy.values():
+    if count > 1:
+        m.h6_room_conflict_violations += (count - 1)
+
+for count in prof_time_occupancy.values():
+    if count > 1:
+        m.h3_prof_conflict_violations += (count - 1)
+\end{lstlisting}

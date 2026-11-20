@@ -1,0 +1,5 @@
+# HW3 Class Scheduling using Genetic Algorithm
+# Dependencies
+
+matplotlib>=3.7.0
+numpy>=1.24.0

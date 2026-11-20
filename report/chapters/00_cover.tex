@@ -1,0 +1,101 @@
+%% 00_cover.tex -- HCMUT Cover Page and Member Contribution Table (English)
+%% -----------------------------------------------------------------------------
+
+\begin{titlepage}
+  \centering
+  {\fontsize{13pt}{16pt}\selectfont\textbf{VIETNAM NATIONAL UNIVERSITY HO CHI MINH CITY}}\\[3pt]
+  {\fontsize{13pt}{16pt}\selectfont\textbf{HO CHI MINH CITY UNIVERSITY OF TECHNOLOGY}}\\[3pt]
+  {\fontsize{12pt}{15pt}\selectfont\textbf{FACULTY OF COMPUTER SCIENCE AND ENGINEERING}}\\[0.4cm]
+  \noindent\rule{0.85\linewidth}{1.2pt}
+  \vspace{0.6cm}
+
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=4.3cm]{figures/hcmut_logo.png}
+  \end{figure}
+
+  \vspace{0.3cm}
+  {\fontsize{15pt}{19pt}\selectfont\textbf{\color{PrismHeader}PROJECT REPORT --- HOMEWORK 3}}\\[0.2cm]
+  {\fontsize{13pt}{17pt}\selectfont\textbf{INTRODUCTION TO ARTIFICIAL INTELLIGENCE (CO3061)}}\\[0.4cm]
+  
+  \begin{tcolorbox}[
+    colback=PrismLabel!30,
+    colframe=PrismHeader,
+    arc=3mm,
+    boxrule=1.5pt,
+    width=0.96\linewidth,
+    halign=center
+  ]
+    {\large\bfseries\color{PrismHeader} CLASS SCHEDULING USING GENETIC ALGORITHM}\\[3pt]
+    {\normalsize\bfseries Constrained Timetable Optimization with Hard, Soft, and Bonus Constraints}\\[2pt]
+    {\small (Includes Chromosome Encoding, Genetic Operators, Fitness Formulation, and Convergence Analysis)}
+  \end{tcolorbox}
+
+  \vspace{0.4cm}
+  \begin{flushleft}
+    \fontsize{10.5pt}{14pt}\selectfont
+    \textbf{CLASS:} CC01 \hspace{2cm} \textbf{GROUP:} 4 \\[3pt]
+    \textbf{INSTRUCTOR(S):} Nguyễn Quốc Minh, Ph.D.
+  \end{flushleft}
+
+  \vspace{0.2cm}
+  \begin{table}[H]
+    \centering
+    \small
+    \begin{tabularx}{\linewidth}{
+        >{\centering\arraybackslash}p{0.8cm}
+        >{\raggedright\arraybackslash}p{4.6cm}
+        >{\centering\arraybackslash}p{2.2cm}
+        >{\raggedright\arraybackslash}X
+        >{\centering\arraybackslash}p{2.0cm}}
+      \toprule
+      \rowcolor{PrismHeader}
+      \color{PrismWhite}\textbf{No.} & 
+      \color{PrismWhite}\textbf{Full Name} & 
+      \color{PrismWhite}\textbf{Student ID} & 
+      \color{PrismWhite}\textbf{Assigned Tasks} & 
+      \color{PrismWhite}\textbf{Contribution} \\
+      \midrule
+      1 & Nguyễn Trần Vĩ & 2353338 & GA Architecture, Problem Modeling, LaTeX Report Lead & 100\% \\
+      2 & Nguyễn Ngọc Sáng & 2353046 & Chromosome Representation \& Genetic Operators (Crossover/Mutation) & 100\% \\
+      3 & Nguyễn Gia Hùng & 2352422 & Fitness Function, Constraints Engine, Convergence Plotting & 100\% \\
+      \midrule
+      4 & Nguyễn Văn Nghĩa & 2452827 & Oral Defense Lead \& Slide Preparation (HW1 \& HW2 Presentation) & 100\%* \\
+      5 & Võ Thành Nguyên Khang & 2452483 & Technical Presenter \& Demo Coordination (HW1 \& HW2 Presentation) & 100\%* \\
+      6 & Hồ Trọng Trí & 2453303 & Technical Q\&A Specialist \& Defense Review (HW1 \& HW2 Presentation) & 100\%* \\
+      7 & Ngô Tuấn Vĩ & 2453437 & Live Telemetry \& GUI Demonstrator (HW1 \& HW2 Presentation) & 100\%* \\
+      \bottomrule
+    \end{tabularx}
+  \end{table}
+
+  \vspace{-0.2cm}
+  \begin{flushleft}
+    \footnotesize\textit{* Note on Group Workload Allocation: According to the group's semester workload division agreement, Members 1, 2, and 3 are directly responsible for the implementation, algorithm engineering, and report writing for Homework 3, while Members 4, 5, 6, and 7 spearhead the comprehensive oral defense and seminar presentations for Homework 1 and Homework 2.}
+  \end{flushleft}
+
+  \vfill
+  \noindent\rule{0.85\linewidth}{0.8pt}\\[3pt]
+  {\small\textit{Ho Chi Minh City, November 2026}}
+\end{titlepage}
+
+\newpage
+
+%% ── Abstract ─────────────────────────────────────────────────────────────────
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+University class scheduling is a classic NP-hard combinatorial optimization problem characterized by an exponentially large search space and an intricate web of conflicting institutional constraints. In this assignment, we formulate and resolve a large-scale academic timetabling problem comprising 60 courses, 480 sections (8 sections per course), 960 lecture sessions (2 sessions per section), 60 faculty professors, and 35 classrooms of varying capacities distributed over a 5-day academic week (6 timeslots per day). 
+
+To navigate this high-dimensional search landscape, we architect an autonomous optimization framework centered on the \textbf{Genetic Algorithm (GA)}. The system features:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Chromosome Representation:} An integer-encoded, section-preserving gene structure that maps each session to its optimal day, timeslot, classroom, and instructor.
+  \item \textbf{Smart Initialization \& Constraint Repair:} Enforces critical hard constraints by design, specifically guaranteeing that each section's two sessions are allocated to non-adjacent, distinct days ($|day_1 - day_2| > 1$).
+  \item \textbf{Multi-Objective Fitness Formulation:} A penalized objective function $F(x)$ that systematically penalizes violations of 6 hard constraints (room capacity, day separation, instructor simultaneous teaching collisions, 20-session professor workload caps, and room collisions), minimizes 4 soft constraint penalties (schedule scattering, morning/afternoon consistency, and room capacity wastage), and rewards bonus satisfaction (matching instructors with their top-3 preferred courses).
+  \item \textbf{Specialized Genetic Operators:} Implements tournament selection, section-preserving uniform crossover, multi-parameter mutation, and elitism to preserve high-performing candidate schedules across generations.
+\end{enumerate}
+
+Empirical evaluations demonstrate that the Genetic Algorithm effectively drives hard constraint violations down to zero while steadily optimizing professor satisfaction and minimizing room capacity waste. We present the formal mathematical formulation, genetic operator design, complete convergence histories, and the exported schedule matrix.
+
+\textbf{Keywords:} Timetabling, Class Scheduling, Genetic Algorithm, Combinatorial Optimization, Hard and Soft Constraints, Penalty-Based Fitness Function, Artificial Intelligence.
+
+\newpage
