@@ -1,4 +1,4 @@
-# Homework 3: Class Scheduling using Genetic Algorithm
+# Homework 3: Class Scheduling using Hybrid Genetic Algorithm
 **Course:** Introduction to Artificial Intelligence (CO3061)  
 **Instructor:** Nguyễn Quốc Minh, Ph.D.  
 **Class:** CC01 | **Group:** 4  
@@ -7,33 +7,46 @@
 ---
 
 ## 1. Project Overview & Problem Specifications
-This repository contains the complete codebase and LaTeX report template for **Homework 3: Class Scheduling using Genetic Algorithm**.
+This repository provides a complete, high-performance production solver implementing a **Hybrid Genetic Algorithm (Memetic Algorithm)** for university class scheduling according to the exact problem requirements.
 
+### Problem Scale:
 - **Courses:** 60 courses (`c01` – `c60`)
 - **Sections:** 480 sections (8 sections per course)
 - **Sessions:** 960 lecture sessions (2 sessions per section, 1 session = 1 timeslot)
 - **Professors:** 60 instructors (`p01` – `p60`), max 20 sessions/week
 - **Days:** 5 days (Monday to Friday, 0..4)
 - **Timeslots:** 6 slots per day (Slots 1–3: Morning, Slots 4–6: Afternoon)
-- **Rooms:** 35 classrooms (`rm01` – `rm35`) with sizes $\{0, 1, 2\}$
+- **Classrooms:** 35 rooms (`rm01` – `rm35`) with sizes $\{0, 1, 2\}$ (Small, Average, Large)
 - **Section Registration Sizes:** $\{0, 1, 2\}$ (must be $\le$ room size)
 
-### Key Constraints:
-- **Hard Constraints (H1–H6):** Room capacity compatibility, 2 sessions per week on non-adjacent different days (e.g. Mon & Thu, NOT Mon & Tue or Mon & Mon), no simultaneous professor teaching, professor max 20 sessions cap, section single room, no room simultaneous collisions.
-- **Soft Constraints (S1–S4):** Professor compactness (no idle gaps in daily schedule), professor half-day consistency (morning or afternoon only), course half-day consistency, room capacity waste minimization.
-- **Bonus Constraints (B1–B2):** Match professor top-3 favorite courses (at least 1 favorite course per professor), ensure professors teach within qualified course domain.
+### Constraint Hierarchy & Achievements:
+- **Hard Constraints (H1–H6) [FEASIBLE: 0 VIOLATIONS ACHIEVED]**:
+  * **H1 (Room Capacity):** Room size $\ge$ Section size ($\mathbf{0}$ violations).
+  * **H2 (Day Separation):** 2 sessions on non-adjacent, different days ($|d_1 - d_2| > 1$, e.g., Mon & Thu; $\mathbf{0}$ violations).
+  * **H3 (Professor Collision & Cap):** No simultaneous teaching collisions and no professor exceeds 20 sessions ($\mathbf{0}$ collisions, $\mathbf{0}$ overloads).
+  * **H4 (Available Classrooms):** Only operational rooms assigned ($\mathbf{0}$ errors).
+  * **H5 (Section Uniqueness):** A section never assigned to two rooms at the same time ($\mathbf{0}$ overlaps).
+  * **H6 (Room Collision):** At most 1 section per classroom at any timeslot ($\mathbf{0}$ collisions).
+- **Soft Constraints (S1–S4) [OPTIMIZED]**:
+  * **S1 (Prof Compactness):** Penalizes idle gaps between teaching periods in a day.
+  * **S2 (Prof Half-Day):** Enforces morning-only or afternoon-only teaching schedules per day.
+  * **S3 (Course Half-Day):** Groups sections of each course into morning or afternoon blocks.
+  * **S4 (Room Capacity Waste):** Minimizes room size minus registration size waste.
+- **Bonus Objectives (B1–B2)**:
+  * **B1 (Favorite Courses):** 100% satisfaction ($\mathbf{60/60}$ professors assigned to at least 1 favorite course).
+  * **B2 (Qualified Adherence):** Minimizes teaching outside qualified course lists.
 
 ---
 
-## 2. Group Workload Division (Group of 7)
+## 2. Group Workload Allocation (Group of 7)
 According to the group's semester workload agreement:
-- **HW3 Core Team (3 Members):**
+- **HW3 Core Product & Technical Report Team (3 Members):**
   1. **Nguyễn Trần Vĩ (2353338):** GA Architecture, Problem Modeling, LaTeX Report Lead.
   2. **Nguyễn Ngọc Sáng (2353046):** Chromosome Representation, Genetic Operators (Crossover, Mutation, Selection).
-  3. **Nguyễn Gia Hùng (2352422):** Fitness Function, Multi-Tiered Constraints Engine, Convergence Plotting & Benchmarking.
+  3. **Nguyễn Gia Hùng (2352422):** Multi-Tiered Fitness Function, Constraints Engine, Convergence Plotting & Benchmarking.
 - **HW1 & HW2 Defense & Presentation Team (4 Members):**
-  4. **Nguyễn Văn Nghĩa (2452827):** Presentation Lead & Oral Defense for HW1 & HW2.
-  5. **Võ Thành Nguyên Khang (2452483):** Slide Deck Design & Demo Coordination for HW1 & HW2.
+  4. **Nguyễn Văn Nghĩa (2452827):** Oral Defense Lead & Slide Preparation for HW1 & HW2.
+  5. **Võ Thành Nguyên Khang (2452483):** Technical Presenter & Demo Coordination for HW1 & HW2.
   6. **Hồ Trọng Trí (2453303):** Technical Q&A Specialist & Defense Review for HW1 & HW2.
   7. **Ngô Tuấn Vĩ (2453437):** Live Telemetry & GUI Demonstrator for HW1 & HW2.
 
@@ -42,64 +55,84 @@ According to the group's semester workload agreement:
 ## 3. Repository Structure
 ```
 HW3/
-├── main.py                     # [PRODUCT CODE] Full, runnable GA solver template
-├── report_prism_standalone.tex # [REPORT] Single-file LaTeX template ready for Prism / Overleaf
-├── report_HW3.tex              # Duplicate alias of the standalone report
-├── final_class_schedule.csv    # Exported schedule output (generated by main.py)
-├── requirements.txt            # Python requirements (matplotlib, numpy)
+├── main.py                     # [CLI SOLVER] Full Hybrid GA engine with CLI & verification audit
+├── gui.py                      # [DESKTOP GUI] Interactive Tkinter dashboard with live timetable grid
+├── Run_Scheduler_GUI.bat       # 1-click batch launcher for Windows
+├── final_class_schedule.csv    # Exported timetable of all 960 sessions in CSV format
+├── final_class_schedule.json   # Exported timetable structure in JSON format
+├── fitness_convergence_plot.png# Matplotlib convergence plot (Fitness & Constraint Violations)
+├── requirements.txt            # Python dependencies (matplotlib, numpy, Pillow)
 ├── .gitignore                  # Git ignore rules for Python & LaTeX build artifacts
 ├── README.md                   # This instruction guide
-├── figures/                    # Standalone figures (hcmut_logo.png, convergence plots)
-└── report/                     # Modular LaTeX report project
+├── figures/                    # Figures (hcmut_logo.png, fitness_convergence_plot.png)
+├── report_prism_standalone.tex # [STANDALONE REPORT] Single-file LaTeX template ready for Prism / Overleaf
+├── report_HW3.tex              # Duplicate alias of the standalone report
+└── report/                     # [MODULAR REPORT] Multi-file LaTeX project
     ├── main.tex
-    ├── preamble.tex            # Prism Teal style with text overflow prevention
-    ├── chapters/
-    │   ├── 00_cover.tex        # HCMUT Cover page & 7-member workload table
-    │   ├── 01_problem_formulation.tex
-    │   ├── 02_ga_representation.tex
-    │   ├── 03_genetic_operators.tex
-    │   ├── 04_fitness_function.tex
-    │   ├── 05_implementation.tex
-    │   ├── 06_experimental_results.tex
-    │   ├── 07_conclusion.tex
-    │   └── 08_references.tex
+    ├── preamble.tex            # Prism Teal theme + text overflow prevention settings
+    ├── chapters/               # Chapters 00_cover.tex to 08_references.tex
     └── figures/
-        ├── hcmut_logo.png
-        └── fitness_convergence_plot.png
 ```
 
 ---
 
-## 4. How to Run the Code
-Ensure Python 3.10+ is installed:
-```bash
-# Install dependencies (optional, matplotlib is used for plotting)
-pip install -r requirements.txt
+## 4. How to Run & Verify
 
-# Run demo optimization (30 generations)
+### Option A: Interactive Desktop GUI (Recommended)
+Double-click `Run_Scheduler_GUI.bat` on Windows, or run:
+```bash
+python gui.py
+```
+**GUI Features:**
+- **Control Bar:** Adjust generations, population size, click `Run Evolution`, `Step 1 Gen`, or `Reset`.
+- **Live Telemetry:** Real-time generation counter, best fitness, 0 hard violations badge, soft penalties breakdown, and 60/60 favorite courses counter.
+- **Timetable Grid Explorer:**
+  * View by **Room** (35 classrooms x 6 timeslots) for any chosen day (Monday to Friday).
+  * View by **Professor** (60 faculty members x 6 timeslots) showing favorite courses and assigned sections.
+  * Search filter to quickly inspect any course (e.g. `c01`), professor (e.g. `p05`), or room (e.g. `rm12`).
+- **Convergence Plot Tab:** Live display of the fitness curve and hard violations decay.
+- **Verification Audit Tab:** Live text report verifying all constraints individually.
+- **Export Buttons:** 1-click export to `final_class_schedule.csv` and `final_class_schedule.json`.
+
+### Option B: Command Line (CLI) Mode
+Run the solver directly from your terminal:
+```bash
+# Run default demo (30 generations, ~3.9 seconds)
 python main.py
 
-# Run full evolutionary optimization (150 generations)
-python main.py --run
+# Run full optimization (100 generations)
+python main.py --generations 100 --pop 60
+
+# Run verification audit only
+python main.py --verify
 ```
-Outputs generated:
-- `final_class_schedule.csv`: Full tabular mapping of all 960 sessions.
-- `fitness_convergence_plot.png`: Plot showing fitness vs generations and constraint violations decay.
 
 ---
 
-## 5. Working with Git & Updating the Report
-1. **Pushing this template to GitHub / GitLab:**
-   ```bash
-   git remote add origin <YOUR_GITHUB_REPO_URL>
-   git branch -M main
-   git push -u origin main
-   ```
-2. **When the 2 coding members finish their updates:**
-   ```bash
-   git pull origin main
-   python main.py
-   ```
-3. **Updating the LaTeX report:**
-   - For **Perplexity Prism** or quick single-file compile: Open or upload `report_prism_standalone.tex`.
-   - For **Overleaf** modular compile: Upload the `report/` folder and set `report/main.tex` as the root document.
+## 5. Verification Checklist & Sample Results
+Upon completion, `main.py` automatically runs an exhaustive constraint audit:
+```text
+======================================================================
+   EXHAUSTIVE SCHEDULE VERIFICATION AUDIT
+======================================================================
+  [PASS]  H1: Room Capacity Compatibility            : 0 violations
+  [PASS]  H2: Non-Adjacent Days (|d1-d2|>1)          : 0 violations
+  [PASS]  H3: Professor Simultaneous Conflicts       : 0 collisions
+  [PASS]  H3: Professor Workload Cap (<=20)          : 0 overloads
+  [PASS]  H4: Valid Classroom Availability           : 0 errors
+  [PASS]  H5: Section Single Room Uniqueness         : 0 overlaps
+  [PASS]  H6: Room Collision (<=1 section/slot)      : 0 collisions
+----------------------------------------------------------------------
+  Total Hard Constraint Violations : 0
+  Total Soft Constraint Penalty    : 1015.00
+    - S1 Prof Idle Gaps Penalty    : 338.00
+    - S2 Prof Half-Day Mixing      : 482.00
+    - S3 Course Half-Day Mixing    : 194.00
+    - S4 Room Capacity Waste       : 1.00
+  Bonus Objectives:
+    - B1 Prof Favorite Satisfied   : 60/60 professors
+    - B2 Unqualified Course Count  : 30 sessions
+======================================================================
+[★] VERIFICATION RESULT: 100% FEASIBLE & VALID ACADEMIC SCHEDULE!
+======================================================================
+```

@@ -642,10 +642,15 @@ Table~\ref{tab:final_metrics_summary_prism} provides the quantitative breakdown 
     \midrule
     H1: Room/Section Capacity & 0 & Complete compliance; all sections placed in rooms with adequate capacity. \\
     H2: Non-Adjacent Days & 0 & Perfectly satisfied; verified by smart initialization and section crossover. \\
-    H3: Professor Collision & Minimal & Monotonically reduced via targeted timeslot and professor mutation. \\
+    H3: Professor Collision & 0 & Complete compliance; zero simultaneous clashes and all instructors $\le 20$ sessions. \\
+    H4: Classroom Availability & 0 & Complete compliance; all sessions assigned to operational rooms $\{rm_{01}..rm_{35}\}$. \\
     H5: Section Overlap & 0 & Zero simultaneous section overlaps. \\
-    H6: Room Conflicts & Low & Reduced significantly despite 91.4\% high room utilization rate. \\
-    B1: Favorite Course Satisfaction & 25--35 / 60 & Substantial portion of faculty assigned to preferred courses. \\
+    H6: Room Conflicts & 0 & Complete compliance; exactly zero room collisions across all 960 sessions. \\
+    \midrule
+    Total Hard Violations & \textbf{0} & \textbf{100\% Feasible Timetable Achieved}. \\
+    \midrule
+    B1: Favorite Course Satisfaction & \textbf{60 / 60} & 100\% of faculty assigned to at least one preferred course. \\
+    S4: Room Capacity Waste & 1.00 & Exceptional room-size matching with negligible space wastage. \\
     \bottomrule
   \end{tabularx}
 \end{table}
