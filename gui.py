@@ -41,7 +41,7 @@ except ImportError:
 class SchedulerGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Class Scheduling - Hybrid Genetic Algorithm (HW3 | HCMUT CO3061)")
+        self.root.title("University Class Scheduling - Genetic Algorithm | HCMUT CO3061")
         self.root.geometry("1200x780")
         self.root.minsize(1050, 680)
 
@@ -92,8 +92,8 @@ class SchedulerGUI:
 
         title_lbl = tk.Label(
             header,
-            text="🎓 CLASS SCHEDULING USING GENETIC ALGORITHM",
-            font=("Helvetica", 14, "bold"),
+            text="UNIVERSITY CLASS SCHEDULING - GENETIC ALGORITHM",
+            font=("Helvetica", 13, "bold"),
             fg="white",
             bg=self.primary_teal
         )
@@ -305,6 +305,7 @@ class SchedulerGUI:
             seed=self.seed
         )
         self.ga.initialize_population()
+        self.ga.history = []
         self.current_schedule = self.ga.population[0]
         self._update_telemetry(gen=0, elapsed=0.0)
         self._refresh_timetable_view()
@@ -320,13 +321,26 @@ class SchedulerGUI:
     def _run_evolution_loop(self):
         start_time = time.time()
         gens = self.target_generations
+        self.ga.history = []
 
         for g in range(gens):
-            self.ga.step()
-            self.current_schedule = self.ga.population[0]
+            best = self.ga.population[0]
+            avg_fit = sum(c.fitness for c in self.ga.population) / len(self.ga.population)
+            self.ga.history.append({
+                "generation": g + 1,
+                "best_fitness": best.fitness,
+                "avg_fitness": avg_fit,
+                "hard_violations": best.metrics.total_hard,
+                "soft_penalty": best.metrics.total_soft,
+                "fav_satisfied": best.metrics.b1_fav_satisfied,
+            })
+            self.current_schedule = best
             elapsed = time.time() - start_time
             self.root.after(0, self._update_telemetry, g + 1, elapsed)
-            time.sleep(0.01)
+
+            if g < gens - 1:
+                self.ga.step(current_gen=g + 1)
+            time.sleep(0.02)
 
         self.is_running = False
         self.root.after(0, self._on_evolution_finish)
@@ -334,11 +348,26 @@ class SchedulerGUI:
     def _step_once(self):
         if self.is_running:
             return
-        self.ga.step()
-        self.current_schedule = self.ga.population[0]
         cur_gen = len(self.ga.history) + 1
+        self.ga.step(current_gen=cur_gen)
+        self.current_schedule = self.ga.population[0]
+        best = self.current_schedule
+        avg_fit = sum(c.fitness for c in self.ga.population) / len(self.ga.population)
+        self.ga.history.append({
+            "generation": cur_gen,
+            "best_fitness": best.fitness,
+            "avg_fitness": avg_fit,
+            "hard_violations": best.metrics.total_hard,
+            "soft_penalty": best.metrics.total_soft,
+            "fav_satisfied": best.metrics.b1_fav_satisfied,
+        })
         self._update_telemetry(gen=cur_gen, elapsed=0.0)
         self._refresh_timetable_view()
+        self._run_audit()
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        plot_path = os.path.join(base_dir, "fitness_convergence_plot.png")
+        plot_fitness_history(self.ga.history, save_path=plot_path)
+        self._load_plot_image()
 
     def _on_evolution_finish(self):
         self.btn_run.config(state="normal")
@@ -347,8 +376,16 @@ class SchedulerGUI:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         plot_path = os.path.join(base_dir, "fitness_convergence_plot.png")
         plot_fitness_history(self.ga.history, save_path=plot_path)
+        fig_dir = os.path.join(base_dir, "figures")
+        if os.path.exists(fig_dir):
+            import shutil
+            try:
+                shutil.copy2(plot_path, os.path.join(fig_dir, "fitness_convergence_plot.png"))
+            except Exception:
+                pass
         self._load_plot_image()
-        messagebox.showinfo("Evolution Complete", f"Genetic optimization finished {self.target_generations} generations!\nHard Violations: {self.current_schedule.metrics.total_hard}")
+        status_text = "100% FEASIBLE (0 VIOLATIONS)" if self.current_schedule.metrics.total_hard == 0 else f"{self.current_schedule.metrics.total_hard} VIOLATIONS"
+        messagebox.showinfo("Optimization Complete", f"Evolution finished {self.target_generations} generations!\nResult: {status_text}\nBest Fitness: {self.current_schedule.fitness:.4f}")
 
     def _update_telemetry(self, gen: int, elapsed: float):
         if not self.current_schedule:
@@ -447,31 +484,33 @@ class SchedulerGUI:
 
         audit_str = (
             "======================================================================\n"
-            "   EXHAUSTIVE SCHEDULE VERIFICATION AUDIT\n"
+            "           SCHEDULE CONSTRAINT VERIFICATION AUDIT\n"
             "======================================================================\n"
-            f"  [{'PASS' if m.h1_room_size==0 else 'FAIL'}]  H1: Room Capacity Compatibility            : {m.h1_room_size} violations\n"
-            f"  [{'PASS' if m.h2_day_separation==0 else 'FAIL'}]  H2: Non-Adjacent Days (|d1-d2|>1)          : {m.h2_day_separation} violations\n"
-            f"  [{'PASS' if m.h3_prof_conflict==0 else 'FAIL'}]  H3: Professor Simultaneous Conflicts       : {m.h3_prof_conflict} collisions\n"
-            f"  [{'PASS' if m.h3_prof_overload==0 else 'FAIL'}]  H3: Professor Workload Cap (<=20)          : {m.h3_prof_overload} overloads\n"
-            f"  [{'PASS' if m.h4_room_availability==0 else 'FAIL'}]  H4: Valid Classroom Availability           : {m.h4_room_availability} errors\n"
-            f"  [{'PASS' if m.h5_section_overlap==0 else 'FAIL'}]  H5: Section Single Room Uniqueness         : {m.h5_section_overlap} overlaps\n"
-            f"  [{'PASS' if m.h6_room_conflict==0 else 'FAIL'}]  H6: Room Collision (<=1 section/slot)      : {m.h6_room_conflict} collisions\n"
+            f"  [{'PASSED' if m.h1_room_size==0 else 'FAILED'}]  H1 (Room Capacity)               : {m.h1_room_size} violations\n"
+            f"  [{'PASSED' if m.h2_day_separation==0 else 'FAILED'}]  H2 (Session Separation)          : {m.h2_day_separation} violations\n"
+            f"  [{'PASSED' if m.h3_prof_conflict==0 else 'FAILED'}]  H3 (Professor Collision)         : {m.h3_prof_conflict} collisions\n"
+            f"  [{'PASSED' if m.h3_prof_overload==0 else 'FAILED'}]  H3 (Professor Limit <= 20)       : {m.h3_prof_overload} overloads\n"
+            f"  [{'PASSED' if m.h4_room_availability==0 else 'FAILED'}]  H4 (Room Availability)           : {m.h4_room_availability} errors\n"
+            f"  [{'PASSED' if m.h5_section_overlap==0 else 'FAILED'}]  H5 (Section Single Room)         : {m.h5_section_overlap} overlaps\n"
+            f"  [{'PASSED' if m.h6_room_conflict==0 else 'FAILED'}]  H6 (Room Collision)              : {m.h6_room_conflict} collisions\n"
             "----------------------------------------------------------------------\n"
-            f"  Total Hard Constraint Violations : {m.total_hard}\n"
-            f"  Total Soft Constraint Penalty    : {m.total_soft:.2f}\n"
-            f"    - S1 Prof Idle Gaps Penalty    : {m.s1_prof_scatter:.2f}\n"
-            f"    - S2 Prof Half-Day Mixing      : {m.s2_prof_half_day:.2f}\n"
-            f"    - S3 Course Half-Day Mixing    : {m.s3_course_half_day:.2f}\n"
-            f"    - S4 Room Capacity Waste       : {m.s4_room_waste:.2f}\n"
+            f"  Total Hard Violations        : {m.total_hard}\n"
+            f"  Total Soft Penalty Score     : {m.total_soft:.2f}\n"
+            f"    - S1 (Professor Idle Gaps) : {m.s1_prof_scatter:.2f}\n"
+            f"    - S2 (Professor Half-Day)  : {m.s2_prof_half_day:.2f}\n"
+            f"    - S3 (Course Half-Day)     : {m.s3_course_half_day:.2f}\n"
+            f"    - S4 (Room Capacity Waste) : {m.s4_room_waste:.2f}\n"
             "  Bonus Objectives:\n"
-            f"    - B1 Prof Favorite Satisfied   : {m.b1_fav_satisfied} / 60 professors\n"
-            f"    - B2 Unqualified Course Count  : {m.b2_unqualified_count} sessions\n"
+            f"    - B1 (Favorite Satisfied)  : {m.b1_fav_satisfied} / 60 professors\n"
+            f"    - B2 (Unqualified Sessions): {m.b2_unqualified_count} sessions\n"
             "======================================================================\n"
         )
         if m.total_hard == 0:
-            audit_str += "\n[★] VERIFICATION RESULT: 100% FEASIBLE & VALID ACADEMIC SCHEDULE!\n"
+            audit_str += "  Status: All constraints satisfied. Timetable is 100% feasible.\n"
+            audit_str += "======================================================================\n"
         else:
-            audit_str += "\n[!] VERIFICATION RESULT: INFEASIBLE (Hard violations present).\n"
+            audit_str += f"  Status: Infeasible ({m.total_hard} hard violations remaining).\n"
+            audit_str += "======================================================================\n"
 
         self.log_text.insert(tk.END, audit_str)
 

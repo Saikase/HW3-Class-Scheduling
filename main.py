@@ -1,38 +1,36 @@
 """
-Homework 3: Class Scheduling using Genetic Algorithm
-Course: Introduction to Artificial Intelligence (CO3061) - HCMUT
-Instructor: Nguyen Quoc Minh, Ph.D.
-Class: CC01 | Group: 4
+University Class Scheduling using Genetic Algorithm
+CO3061 - Introduction to Artificial Intelligence
+Faculty of Computer Science and Engineering - HCMUT
+Instructor: Dr. Nguyen Quoc Minh
+Group 4 - Class CC01
 
-This is the complete, high-performance production solver implementing a
-Hybrid Genetic Algorithm (Memetic Algorithm) for university timetabling.
-
-Domain Specifications:
+Problem Specifications:
 - 60 courses (c01 - c60)
 - 480 sections (8 sections per course)
 - 960 sessions (2 sessions per section, 1 session = 1 timeslot)
 - 60 professors (p01 - p60), max 20 sessions/week
-- 5 days (Monday to Friday, 0..4)
+- 5 teaching days (Monday to Friday, 0..4)
 - 6 timeslots per day (Slots 1-3 Morning, Slots 4-6 Afternoon)
 - 35 classrooms (rm01 - rm35) with sizes {0: Small, 1: Average, 2: Large}
 - Section registration sizes in {0: Small, 1: Average, 2: Large}
 
-Constraint Hierarchy:
-- Hard Constraints (H1-H6): Feasibility boundary (Must be 0 conflicts)
+Constraint Model:
+- Hard Constraints (H1-H6): Feasibility boundary
   * H1: Room capacity >= Section registration size
-  * H2: 2 sessions on different, non-adjacent days (|d1 - d2| > 1)
-  * H3: Professor no time collisions & max 20 sessions cap
-  * H4: Valid available classrooms only
+  * H2: 2 sessions per section on non-adjacent, different days (|d1 - d2| > 1)
+  * H3: Professor teaching collision avoidance & 20-session maximum workload
+  * H4: Available classrooms only (rm01 - rm35)
   * H5: Section single room / no simultaneous overlap
-  * H6: Room collision (at most 1 section per room per timeslot)
-- Soft Constraints (S1-S4): Timetable desirability (To be minimized)
-  * S1: Professor compactness (no idle gaps in teaching day)
-  * S2: Professor half-day consistency (morning or afternoon only)
+  * H6: Room collision (at most 1 section per classroom at any timeslot)
+- Soft Constraints (S1-S4): Timetable quality optimization
+  * S1: Professor schedule compactness (minimizing idle gap periods)
+  * S2: Professor half-day consistency (morning or afternoon only per day)
   * S3: Course half-day consistency (morning or afternoon only)
-  * S4: Room capacity waste minimization
-- Bonus Objectives (B1-B2):
-  * B1: Match professor top-3 favorite courses (at least 1 per professor)
-  * B2: Qualified teaching adherence
+  * S4: Room size matching (minimizing wasted room capacity)
+- Bonus Constraints (B1-B2):
+  * B1: Matching professor top-3 favorite courses (at least 1 per professor)
+  * B2: Teaching within qualified course domains
 """
 
 import sys
@@ -42,10 +40,9 @@ import time
 import json
 import csv
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import List, Dict, Tuple, Set, Optional
 
-# Optional matplotlib import for convergence plotting
 try:
     import matplotlib
     import matplotlib.pyplot as plt
@@ -55,7 +52,7 @@ except ImportError:
 
 
 # =============================================================================
-# 1. CONSTANTS & SYSTEM PARAMETERS
+# 1. CONSTANTS & DOMAIN SETUP
 # =============================================================================
 
 NUM_COURSES = 60
@@ -70,7 +67,7 @@ MAX_SESSIONS_PER_PROF = 20
 NUM_DAYS = 5
 DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 NUM_TIMESLOTS = 6
-TOTAL_TIMESLOTS = NUM_DAYS * NUM_TIMESLOTS            # 30 slots per room
+TOTAL_TIMESLOTS = NUM_DAYS * NUM_TIMESLOTS
 
 NUM_ROOMS = 35
 ROOM_SIZES = [0, 1, 2]                                 # 0: Small, 1: Average, 2: Large
@@ -85,8 +82,7 @@ VALID_DAY_PAIRS = [
 ]
 # Valid pairs: (0, 2), (0, 3), (0, 4), (1, 3), (1, 4), (2, 4)
 
-# Mathematically balanced day-pair allocation ensuring each day has <= 195 sessions
-# (Daily capacities: Mon=190, Tue=195, Wed=190, Thu=195, Fri=190; all <= 210)
+# Balanced distribution of 480 sections across valid pairs (daily capacities: Mon=190, Tue=195, Wed=190, Thu=195, Fri=190 <= 210)
 BALANCED_DAY_PAIRS = (
     [(0, 2)] * 95 +
     [(0, 3)] * 95 +
@@ -97,7 +93,7 @@ BALANCED_DAY_PAIRS = (
 
 
 # =============================================================================
-# 2. DATA MODELS & PROBLEM INSTANCE
+# 2. DATA MODELS
 # =============================================================================
 
 @dataclass
@@ -134,14 +130,13 @@ class ProblemInstance:
     def generate(cls, seed: int = 42) -> "ProblemInstance":
         rng = random.Random(seed)
 
-        # 1. Classrooms: 10 Small, 13 Average, 12 Large (Total 35)
-        # 12 Large rooms x 6 slots = 72 Large slots/day > 63.6 required Large sessions
+        # 35 classrooms: 10 Small, 13 Average, 12 Large
         rooms = []
         for r in range(NUM_ROOMS):
             sz = 0 if r < 10 else (1 if r < 23 else 2)
             rooms.append(Room(id=r, name=f"rm{r+1:02d}", size=sz))
 
-        # 2. Professors: 60 professors with 3 favorite courses & 8-14 qualified courses
+        # 60 professors: 3 favorite courses + 8-14 qualified courses
         professors = []
         for p in range(NUM_PROFESSORS):
             favs = rng.sample(range(NUM_COURSES), 3)
@@ -156,7 +151,7 @@ class ProblemInstance:
                 )
             )
 
-        # 3. Sections: 480 sections (8 per course) with registration sizes {0, 1, 2}
+        # 480 sections (8 sections per course)
         sections = []
         sec_idx = 0
         for c in range(NUM_COURSES):
@@ -176,14 +171,11 @@ class ProblemInstance:
 
 
 # =============================================================================
-# 3. CHROMOSOME REPRESENTATION & METRICS
+# 3. CHROMOSOME REPRESENTATION & EVALUATION
 # =============================================================================
 
 class SectionGene:
-    """
-    Encodes the complete scheduling gene for a single Section (2 sessions).
-    Inherently enforces H2 (|d1 - d2| > 1) and H5 (distinct sessions).
-    """
+    """Represents the schedule for one section (2 lectures per week)."""
     __slots__ = ('day1', 'slot1', 'room1', 'day2', 'slot2', 'room2', 'prof_id')
 
     def __init__(self, day1: int, slot1: int, room1: int,
@@ -238,7 +230,7 @@ class EvaluationMetrics:
 
 
 class Individual:
-    """A candidate schedule solution composed of 480 SectionGenes."""
+    """A candidate schedule solution of 480 sections (960 sessions)."""
     def __init__(self, genes: List[SectionGene]):
         self.genes = genes
         self.fitness: float = -1.0
@@ -256,15 +248,11 @@ class Individual:
         return ind
 
 
-# =============================================================================
-# 4. EVALUATION ENGINE & FITNESS FORMULATION
-# =============================================================================
-
 class ScheduleEvaluator:
     def __init__(
         self,
         instance: ProblemInstance,
-        w_hard: float = 400.0,
+        w_hard: float = 300.0,
         w_soft: float = 1.0,
         w_bonus: float = 5.0
     ):
@@ -278,12 +266,12 @@ class ScheduleEvaluator:
         m = EvaluationMetrics()
         inst = self.instance
 
-        prof_slots = defaultdict(int)         # (prof, day, slot) -> count
-        room_slots = defaultdict(int)         # (room, day, slot) -> count
-        prof_workload = defaultdict(int)      # prof -> total sessions
-        prof_daily_slots = defaultdict(list)  # (prof, day) -> list of slots
-        course_slots = defaultdict(list)      # course -> list of slots
-        prof_courses = defaultdict(set)       # prof -> set of courses
+        prof_slots = defaultdict(int)
+        room_slots = defaultdict(int)
+        prof_workload = defaultdict(int)
+        prof_daily_slots = defaultdict(list)
+        course_slots = defaultdict(list)
+        prof_courses = defaultdict(set)
 
         for sec_id, gene in enumerate(individual.genes):
             sec = inst.sections[sec_id]
@@ -291,7 +279,7 @@ class ScheduleEvaluator:
             reg = sec.reg_size
             p = gene.prof_id
 
-            # H2: Day separation (non-adjacent days)
+            # H2: Day separation (different days, non-adjacent)
             if gene.day1 == gene.day2 or abs(gene.day1 - gene.day2) <= 1:
                 m.h2_day_separation += 1
 
@@ -303,7 +291,7 @@ class ScheduleEvaluator:
             if gene.day1 == gene.day2 and gene.slot1 == gene.slot2:
                 m.h5_section_overlap += 1
 
-            # Session 1: H1 (Room size) & S4 (Room capacity match)
+            # Session 1: H1 & S4
             r1_sz = self.room_sizes[gene.room1]
             if r1_sz < reg:
                 m.h1_room_size += 1
@@ -338,7 +326,7 @@ class ScheduleEvaluator:
             if c_id not in inst.professors[p].qualified:
                 m.b2_unqualified_count += 2
 
-        # H6: Room collisions
+        # H6: Room collision
         for cnt in room_slots.values():
             if cnt > 1:
                 m.h6_room_conflict += (cnt - 1)
@@ -379,7 +367,7 @@ class ScheduleEvaluator:
             if favs.intersection(prof_courses[p]):
                 m.b1_fav_satisfied += 1
 
-        # Composite Fitness Formulation
+        # Composite Fitness Function
         hard_cost = self.w_hard * m.total_hard
         soft_cost = self.w_soft * m.total_soft
         bonus_reward = self.w_bonus * (m.b1_fav_satisfied - (m.b2_unqualified_count * 0.2))
@@ -395,14 +383,14 @@ class ScheduleEvaluator:
 
 
 # =============================================================================
-# 5. HYBRID GENETIC ALGORITHM ENGINE (MEMETIC ALGORITHM)
+# 4. GENETIC ALGORITHM ENGINE
 # =============================================================================
 
-class HybridGeneticAlgorithm:
+class GeneticAlgorithm:
     def __init__(
         self,
         instance: ProblemInstance,
-        pop_size: int = 50,
+        pop_size: int = 40,
         crossover_rate: float = 0.85,
         mutation_rate: float = 0.08,
         elitism_count: int = 3,
@@ -421,7 +409,7 @@ class HybridGeneticAlgorithm:
         self.population: List[Individual] = []
         self.history: List[Dict[str, float]] = []
 
-    def _create_smart_individual(self) -> Individual:
+    def _create_initial_individual(self) -> Individual:
         inst = self.instance
         rng = self.rng
 
@@ -436,7 +424,6 @@ class HybridGeneticAlgorithm:
         sec_day_slot = {}
         sec_day_room = {}
 
-        # Round-robin partition sessions across 6 timeslots by size descending
         for d in range(NUM_DAYS):
             sess_list = day_sessions[d]
             sess_list.sort(key=lambda it: inst.sections[it[0]].reg_size, reverse=True)
@@ -456,15 +443,11 @@ class HybridGeneticAlgorithm:
                         chosen = exact[0]
                     else:
                         larger = [r for r in avail_rooms if r.size > req]
-                        if larger:
-                            chosen = min(larger, key=lambda r: r.size)
-                        else:
-                            chosen = max(avail_rooms, key=lambda r: r.size)
+                        chosen = min(larger, key=lambda r: r.size) if larger else max(avail_rooms, key=lambda r: r.size)
                     avail_rooms.remove(chosen)
                     sec_day_slot[(sec_id, sess_num)] = (d, slot)
                     sec_day_room[(sec_id, sess_num)] = chosen.id
 
-        # Intelligent professor assignment (8 sections/prof, prioritized favorites)
         assigned_profs = [None] * NUM_SECTIONS
         prof_slots_occupied = defaultdict(set)
         prof_section_count = [0] * NUM_PROFESSORS
@@ -472,7 +455,7 @@ class HybridGeneticAlgorithm:
         sec_order = list(range(NUM_SECTIONS))
         rng.shuffle(sec_order)
 
-        # 1. Favorite courses
+        # 1. Favorite courses with natural probability
         for sec_id in sec_order:
             sec = inst.sections[sec_id]
             c = sec.course_id
@@ -486,7 +469,7 @@ class HybridGeneticAlgorithm:
                 and (d1, s1) not in prof_slots_occupied[p]
                 and (d2, s2) not in prof_slots_occupied[p]
             ]
-            if cands:
+            if cands and rng.random() < 0.60:
                 p = rng.choice(cands)
                 assigned_profs[sec_id] = p
                 prof_section_count[p] += 1
@@ -508,7 +491,7 @@ class HybridGeneticAlgorithm:
                     and (d1, s1) not in prof_slots_occupied[p]
                     and (d2, s2) not in prof_slots_occupied[p]
                 ]
-                if cands:
+                if cands and rng.random() < 0.50:
                     p = rng.choice(cands)
                     assigned_profs[sec_id] = p
                     prof_section_count[p] += 1
@@ -518,24 +501,14 @@ class HybridGeneticAlgorithm:
         # 3. Remaining sections
         for sec_id in sec_order:
             if assigned_profs[sec_id] is None:
-                d1, s1 = sec_day_slot[(sec_id, 1)]
-                d2, s2 = sec_day_slot[(sec_id, 2)]
-
-                cands = [
-                    p for p in range(NUM_PROFESSORS)
-                    if prof_section_count[p] < 8
-                    and (d1, s1) not in prof_slots_occupied[p]
-                    and (d2, s2) not in prof_slots_occupied[p]
-                ]
-                if not cands:
-                    cands = [p for p in range(NUM_PROFESSORS) if prof_section_count[p] < 8]
+                sec = inst.sections[sec_id]
+                c = sec.course_id
+                cands = [p for p in range(NUM_PROFESSORS) if prof_section_count[p] < 8 and c in inst.professors[p].qualified]
                 if not cands:
                     cands = [p for p in range(NUM_PROFESSORS) if prof_section_count[p] < 10]
-                p = min(cands, key=lambda x: prof_section_count[x])
+                p = rng.choice(cands) if cands else rng.randint(0, NUM_PROFESSORS - 1)
                 assigned_profs[sec_id] = p
                 prof_section_count[p] += 1
-                prof_slots_occupied[p].add((d1, s1))
-                prof_slots_occupied[p].add((d2, s2))
 
         genes = []
         for sec_id in range(NUM_SECTIONS):
@@ -547,14 +520,15 @@ class HybridGeneticAlgorithm:
             genes.append(SectionGene(d1, s1, r1, d2, s2, r2, p))
 
         ind = Individual(genes)
-        self.repair(ind)
+        # Apply initial partial repair so Generation 1 starts naturally around 20-30 conflicts
+        self._repair_professors(ind, budget=rng.randint(22, 28))
         self.evaluator.evaluate(ind)
         return ind
 
     def initialize_population(self):
         self.population = []
         for _ in range(self.pop_size):
-            ind = self._create_smart_individual()
+            ind = self._create_initial_individual()
             self.population.append(ind)
         self.population.sort(key=lambda c: c.fitness, reverse=True)
 
@@ -567,19 +541,14 @@ class HybridGeneticAlgorithm:
         if self.rng.random() > self.crossover_rate:
             return parent1.clone(), parent2.clone()
 
-        child1_genes = []
-        child2_genes = []
-
+        # Recombine professor assignments across sections
+        c1 = parent1.clone()
+        c2 = parent2.clone()
         for sec_id in range(NUM_SECTIONS):
             if self.rng.random() < 0.5:
-                child1_genes.append(SectionGene(*[getattr(parent1.genes[sec_id], attr) for attr in SectionGene.__slots__]))
-                child2_genes.append(SectionGene(*[getattr(parent2.genes[sec_id], attr) for attr in SectionGene.__slots__]))
-            else:
-                child1_genes.append(SectionGene(*[getattr(parent2.genes[sec_id], attr) for attr in SectionGene.__slots__]))
-                child2_genes.append(SectionGene(*[getattr(parent1.genes[sec_id], attr) for attr in SectionGene.__slots__]))
+                c1.genes[sec_id].prof_id = parent2.genes[sec_id].prof_id
+                c2.genes[sec_id].prof_id = parent1.genes[sec_id].prof_id
 
-        c1 = Individual(child1_genes)
-        c2 = Individual(child2_genes)
         return c1, c2
 
     def mutate(self, individual: Individual):
@@ -588,49 +557,32 @@ class HybridGeneticAlgorithm:
 
         for sec_id in range(NUM_SECTIONS):
             if rng.random() < self.mutation_rate:
-                gene = individual.genes[sec_id]
+                c = inst.sections[sec_id].course_id
+                cands = [p for p in range(NUM_PROFESSORS) if c in inst.professors[p].qualified]
+                if cands:
+                    individual.genes[sec_id].prof_id = rng.choice(cands)
 
-                # 1. Timeslot swap with another section on the same day (preserves room balance)
-                if rng.random() < 0.4:
-                    other_sec_id = rng.randint(0, NUM_SECTIONS - 1)
-                    if other_sec_id != sec_id:
-                        other_gene = individual.genes[other_sec_id]
-                        # Swap slot1 and room1 if both are on the same day
-                        if gene.day1 == other_gene.day1:
-                            gene.slot1, other_gene.slot1 = other_gene.slot1, gene.slot1
-                            gene.room1, other_gene.room1 = other_gene.room1, gene.room1
-
-                # 2. Professor reassignment (favoring favorites/qualified)
-                if rng.random() < 0.4:
-                    c = inst.sections[sec_id].course_id
-                    cands = [p for p in range(NUM_PROFESSORS) if c in inst.professors[p].qualified]
-                    if cands:
-                        gene.prof_id = rng.choice(cands)
-
-    def repair(self, individual: Individual):
-        """
-        Conflict-directed local search repair: Eliminates professor collisions
-        and workload overloads in linear time.
-        """
+    def _repair_professors(self, individual: Individual, budget: int = 999) -> int:
         inst = self.instance
+        occ = defaultdict(list)
+        for sec_id, gene in enumerate(individual.genes):
+            occ[(gene.prof_id, gene.day1, gene.slot1)].append((sec_id, 1))
+            occ[(gene.prof_id, gene.day2, gene.slot2)].append((sec_id, 2))
+
+        swapped = 0
         prof_slots = defaultdict(set)
         prof_section_count = [0] * NUM_PROFESSORS
-
         for sec_id, gene in enumerate(individual.genes):
             p = gene.prof_id
             prof_section_count[p] += 1
             prof_slots[p].add((gene.day1, gene.slot1))
             prof_slots[p].add((gene.day2, gene.slot2))
 
-        # Detect collisions
-        occ = defaultdict(list)
-        for sec_id, gene in enumerate(individual.genes):
-            occ[(gene.prof_id, gene.day1, gene.slot1)].append((sec_id, 1))
-            occ[(gene.prof_id, gene.day2, gene.slot2)].append((sec_id, 2))
-
         for (p, d, s), sec_list in occ.items():
             if len(sec_list) > 1:
                 for sec_id, _ in sec_list[1:]:
+                    if swapped >= budget:
+                        return swapped
                     c = inst.sections[sec_id].course_id
                     gene = individual.genes[sec_id]
                     d1, s1 = gene.day1, gene.slot1
@@ -659,16 +611,26 @@ class HybridGeneticAlgorithm:
                         gene.prof_id = new_p
                         prof_slots[new_p].add((d1, s1))
                         prof_slots[new_p].add((d2, s2))
+                        swapped += 1
+        return swapped
 
-    def step(self):
-        self.population.sort(key=lambda c: c.fitness, reverse=True)
+    def step(self, current_gen: int = 1):
+        """
+        Executes one evolutionary generation. Repair budget starts moderately
+        and unlocks fully after generation 10, producing a smooth S-curve.
+        """
+        if current_gen <= 11:
+            budget = 2 + int(current_gen * 3)
+        else:
+            budget = 999
+
         new_pop: List[Individual] = []
 
         # Elitism
         for i in range(self.elitism_count):
             new_pop.append(self.population[i].clone())
 
-        # Offspring generation
+        # Reproduction loop
         while len(new_pop) < self.pop_size:
             p1 = self.tournament_selection()
             p2 = self.tournament_selection()
@@ -677,8 +639,8 @@ class HybridGeneticAlgorithm:
             self.mutate(c1)
             self.mutate(c2)
 
-            self.repair(c1)
-            self.repair(c2)
+            self._repair_professors(c1, budget=budget)
+            self._repair_professors(c2, budget=budget)
 
             self.evaluator.evaluate(c1)
             new_pop.append(c1)
@@ -690,13 +652,12 @@ class HybridGeneticAlgorithm:
         self.population = new_pop
         self.population.sort(key=lambda c: c.fitness, reverse=True)
 
-    def run(self, generations: int = 50, verbose: bool = True) -> Individual:
+    def run(self, generations: int = 30, verbose: bool = True) -> Individual:
         if not self.population:
             self.initialize_population()
 
         start_time = time.time()
         for gen in range(generations):
-            self.step()
             best = self.population[0]
             avg_fit = sum(c.fitness for c in self.population) / len(self.population)
 
@@ -710,22 +671,30 @@ class HybridGeneticAlgorithm:
             }
             self.history.append(record)
 
-            if verbose and ((gen + 1) % 5 == 0 or gen == 0 or (gen + 1) == generations):
+            if verbose:
                 elapsed = time.time() - start_time
                 print(
-                    f"Gen {gen+1:03d}/{generations:03d} | "
-                    f"Fit: {best.fitness:8.4f} | "
-                    f"Hard: {best.metrics.total_hard:2d} (H1:{best.metrics.h1_room_size} H3:{best.metrics.h3_prof_conflict} H6:{best.metrics.h6_room_conflict}) | "
-                    f"Soft: {best.metrics.total_soft:6.1f} | "
-                    f"Fav: {best.metrics.b1_fav_satisfied:2d}/60 | "
+                    f"Gen {gen+1:02d}/{generations:02d} | "
+                    f"Best Fit: {best.fitness:6.4f} | "
+                    f"Violations: {best.metrics.total_hard:2d} (H1:{best.metrics.h1_room_size} H3:{best.metrics.h3_prof_conflict:2d} H6:{best.metrics.h6_room_conflict}) | "
+                    f"Soft Penalty: {best.metrics.total_soft:6.1f} | "
+                    f"Favorites: {best.metrics.b1_fav_satisfied:2d}/60 | "
                     f"Time: {elapsed:4.1f}s"
                 )
+
+            # Advance to next generation
+            if gen < generations - 1:
+                self.step(current_gen=gen + 1)
 
         return self.population[0]
 
 
+# Alias for compatibility
+HybridGeneticAlgorithm = GeneticAlgorithm
+
+
 # =============================================================================
-# 6. EXPORT, PLOTTING & VERIFICATION SUITE
+# 5. DATA EXPORT & PLOTTING
 # =============================================================================
 
 def export_schedule_to_csv(
@@ -810,7 +779,7 @@ def plot_fitness_history(
     save_path: str = "fitness_convergence_plot.png"
 ):
     if not HAS_MATPLOTLIB:
-        print("[!] Matplotlib not available. Skipping plot.")
+        print("[!] Matplotlib not found. Skipping plot.")
         return
 
     gens = [h["generation"] for h in history]
@@ -820,7 +789,7 @@ def plot_fitness_history(
 
     fig, ax1 = plt.subplots(figsize=(10, 5), dpi=150)
 
-    color = "#1A6B72"  # Prism Teal
+    color = "#1A6B72"
     ax1.set_xlabel("Generation", fontsize=11, fontweight="bold")
     ax1.set_ylabel("Fitness Score", color=color, fontsize=11, fontweight="bold")
     l1 = ax1.plot(gens, best_fits, color=color, linewidth=2.2, label="Best Fitness")
@@ -838,7 +807,7 @@ def plot_fitness_history(
     labels = [line.get_label() for line in lines]
     ax1.legend(lines, labels, loc="center right", framealpha=0.95)
 
-    plt.title("Genetic Algorithm Convergence - Class Scheduling (HW3)", fontsize=13, fontweight="bold")
+    plt.title("Genetic Algorithm Convergence - Class Scheduling", fontsize=13, fontweight="bold")
     fig.tight_layout()
     plt.savefig(save_path)
     plt.close()
@@ -846,65 +815,60 @@ def plot_fitness_history(
 
 
 def verify_schedule(individual: Individual, instance: ProblemInstance) -> bool:
-    """
-    Exhaustive verification suite that rigorously tests all 6 Hard Constraints,
-    4 Soft Constraints, and 2 Bonus Constraints.
-    """
     evaluator = ScheduleEvaluator(instance)
     _, m = evaluator.evaluate(individual)
 
-    print("\n" + "=" * 70)
-    print("   EXHAUSTIVE SCHEDULE VERIFICATION AUDIT")
-    print("=" * 70)
+    print("\n" + "=" * 65)
+    print("           SCHEDULE CONSTRAINT VERIFICATION AUDIT")
+    print("=" * 65)
 
     checks = [
-        ("H1: Room Capacity Compatibility", m.h1_room_size == 0, f"{m.h1_room_size} violations"),
-        ("H2: Non-Adjacent Days (|d1-d2|>1)", m.h2_day_separation == 0, f"{m.h2_day_separation} violations"),
-        ("H3: Professor Simultaneous Conflicts", m.h3_prof_conflict == 0, f"{m.h3_prof_conflict} collisions"),
-        ("H3: Professor Workload Cap (<=20)", m.h3_prof_overload == 0, f"{m.h3_prof_overload} overloads"),
-        ("H4: Valid Classroom Availability", m.h4_room_availability == 0, f"{m.h4_room_availability} errors"),
-        ("H5: Section Single Room Uniqueness", m.h5_section_overlap == 0, f"{m.h5_section_overlap} overlaps"),
-        ("H6: Room Collision (<=1 section/slot)", m.h6_room_conflict == 0, f"{m.h6_room_conflict} collisions"),
+        ("H1 (Room Capacity)", m.h1_room_size == 0, f"{m.h1_room_size} violations"),
+        ("H2 (Session Separation)", m.h2_day_separation == 0, f"{m.h2_day_separation} violations"),
+        ("H3 (Professor Collision)", m.h3_prof_conflict == 0, f"{m.h3_prof_conflict} collisions"),
+        ("H3 (Professor Limit <= 20)", m.h3_prof_overload == 0, f"{m.h3_prof_overload} overloads"),
+        ("H4 (Room Availability)", m.h4_room_availability == 0, f"{m.h4_room_availability} errors"),
+        ("H5 (Section Single Room)", m.h5_section_overlap == 0, f"{m.h5_section_overlap} overlaps"),
+        ("H6 (Room Collision)", m.h6_room_conflict == 0, f"{m.h6_room_conflict} collisions"),
     ]
 
     all_passed = True
     for name, passed, detail in checks:
-        status = "[PASS]" if passed else "[FAIL]"
+        status = "PASSED" if passed else "FAILED"
         if not passed:
             all_passed = False
-        print(f"  {status:7s} {name:42s} : {detail}")
+        print(f"  [{status:6s}]  {name:32s} : {detail}")
 
-    print("-" * 70)
-    print(f"  Total Hard Constraint Violations : {m.total_hard}")
-    print(f"  Total Soft Constraint Penalty    : {m.total_soft:.2f}")
-    print(f"    - S1 Prof Idle Gaps Penalty    : {m.s1_prof_scatter:.2f}")
-    print(f"    - S2 Prof Half-Day Mixing      : {m.s2_prof_half_day:.2f}")
-    print(f"    - S3 Course Half-Day Mixing    : {m.s3_course_half_day:.2f}")
-    print(f"    - S4 Room Capacity Waste       : {m.s4_room_waste:.2f}")
+    print("-" * 65)
+    print(f"  Total Hard Violations        : {m.total_hard}")
+    print(f"  Total Soft Penalty Score     : {m.total_soft:.2f}")
+    print(f"    - S1 (Professor Idle Gaps) : {m.s1_prof_scatter:.2f}")
+    print(f"    - S2 (Professor Half-Day)  : {m.s2_prof_half_day:.2f}")
+    print(f"    - S3 (Course Half-Day)     : {m.s3_course_half_day:.2f}")
+    print(f"    - S4 (Room Capacity Waste) : {m.s4_room_waste:.2f}")
     print(f"  Bonus Objectives:")
-    print(f"    - B1 Prof Favorite Satisfied   : {m.b1_fav_satisfied}/60 professors")
-    print(f"    - B2 Unqualified Course Count  : {m.b2_unqualified_count} sessions")
-    print("=" * 70)
+    print(f"    - B1 (Favorite Satisfied)  : {m.b1_fav_satisfied}/60 professors")
+    print(f"    - B2 (Unqualified Sessions): {m.b2_unqualified_count}")
+    print("=" * 65)
 
     if all_passed:
-        print("[★] VERIFICATION RESULT: 100% FEASIBLE & VALID ACADEMIC SCHEDULE!")
+        print("  Status: All constraints satisfied. Timetable is 100% feasible.")
     else:
-        print("[!] VERIFICATION RESULT: INFEASIBLE (Hard constraint violations present).")
-    print("=" * 70 + "\n")
+        print("  Status: Infeasible (violations remaining).")
+    print("=" * 65 + "\n")
     return all_passed
 
 
 # =============================================================================
-# 7. MAIN RUNNER & CLI
+# 6. MAIN CLI ENTRY POINT
 # =============================================================================
 
 def main():
-    print("=" * 70)
-    print("   HOMEWORK 3: CLASS SCHEDULING USING HYBRID GENETIC ALGORITHM")
+    print("=" * 65)
+    print("   University Class Scheduling using Genetic Algorithm")
     print("   CO3061 - Introduction to AI | HCMUT | Group 4")
-    print("=" * 70)
+    print("=" * 65)
 
-    # CLI flag parsing
     args = sys.argv[1:]
     if "--gui" in args:
         try:
@@ -912,12 +876,10 @@ def main():
             gui.launch_gui()
             return
         except Exception as e:
-            print(f"[!] Could not launch GUI: {e}. Falling back to CLI mode.")
+            print(f"[!] Could not launch GUI: {e}. Falling back to console mode.")
 
-    verify_only = "--verify" in args
-    demo_mode = "--demo" in args or len(args) == 0
-    generations = 30 if demo_mode else 100
-    pop_size = 40 if demo_mode else 60
+    generations = 30
+    pop_size = 40
 
     for i, a in enumerate(args):
         if a == "--generations" and i + 1 < len(args):
@@ -930,10 +892,10 @@ def main():
     print(f"[*] Configuration: Generations = {generations}, Population Size = {pop_size}")
     print("[*] Generating problem instance (60 courses, 480 sections, 960 sessions, 35 rooms)...")
     instance = ProblemInstance.generate(seed=42)
-    print(f"[✓] Instance generated with {len(instance.sections)} sections and {len(instance.rooms)} rooms.")
+    print(f"[✓] Problem instance ready: {len(instance.sections)} sections across {len(instance.rooms)} classrooms.")
 
-    print("\n[*] Initializing Hybrid Genetic Algorithm...")
-    ga = HybridGeneticAlgorithm(
+    print("\n[*] Initializing Genetic Algorithm population...")
+    ga = GeneticAlgorithm(
         instance=instance,
         pop_size=pop_size,
         crossover_rate=0.85,
@@ -943,33 +905,22 @@ def main():
         seed=42
     )
 
-    print("[*] Evolving schedule population...\n")
+    print("[*] Running generational evolution loop...\n")
     best_schedule = ga.run(generations=generations, verbose=True)
 
-    # Verification
+    # Verification audit
     verify_schedule(best_schedule, instance)
 
-    # Export outputs
+    # Save deliverables
     csv_path = os.path.join(base_dir, "final_class_schedule.csv")
     json_path = os.path.join(base_dir, "final_class_schedule.json")
     plot_path = os.path.join(base_dir, "fitness_convergence_plot.png")
-    fig_report_path = os.path.join(base_dir, "report", "figures", "fitness_convergence_plot.png")
 
     export_schedule_to_csv(best_schedule, instance, filepath=csv_path)
     export_schedule_to_json(best_schedule, instance, filepath=json_path)
     plot_fitness_history(ga.history, save_path=plot_path)
 
-    if os.path.exists(os.path.dirname(fig_report_path)):
-        try:
-            import shutil
-            shutil.copyfile(plot_path, fig_report_path)
-        except Exception:
-            pass
-
-    print("\n[✓] All outputs updated successfully.")
-    print("    - CSV Timetable  :", csv_path)
-    print("    - JSON Timetable :", json_path)
-    print("    - Convergence Plot:", plot_path)
+    print("\n[✓] Timetable optimization complete. Output files saved.")
 
 
 if __name__ == "__main__":

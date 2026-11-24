@@ -1,8 +1,8 @@
 @echo off
-title Class Scheduling using Genetic Algorithm (HW3)
+title He thong xep thoi khoa bieu - HCMUT CO3061
 cd /d "%~dp0"
 echo ======================================================================
-echo    Launching Class Scheduling Genetic Algorithm GUI (HCMUT CO3061)
+echo    Khoi dong giao dien xep thoi khoa bieu (CO3061 - Nhom 4)
 echo ======================================================================
 python gui.py
 pause

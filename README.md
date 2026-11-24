@@ -112,27 +112,27 @@ python main.py --verify
 ## 5. Verification Checklist & Sample Results
 Upon completion, `main.py` automatically runs an exhaustive constraint audit:
 ```text
-======================================================================
-   EXHAUSTIVE SCHEDULE VERIFICATION AUDIT
-======================================================================
-  [PASS]  H1: Room Capacity Compatibility            : 0 violations
-  [PASS]  H2: Non-Adjacent Days (|d1-d2|>1)          : 0 violations
-  [PASS]  H3: Professor Simultaneous Conflicts       : 0 collisions
-  [PASS]  H3: Professor Workload Cap (<=20)          : 0 overloads
-  [PASS]  H4: Valid Classroom Availability           : 0 errors
-  [PASS]  H5: Section Single Room Uniqueness         : 0 overlaps
-  [PASS]  H6: Room Collision (<=1 section/slot)      : 0 collisions
-----------------------------------------------------------------------
-  Total Hard Constraint Violations : 0
-  Total Soft Constraint Penalty    : 1015.00
-    - S1 Prof Idle Gaps Penalty    : 338.00
-    - S2 Prof Half-Day Mixing      : 482.00
-    - S3 Course Half-Day Mixing    : 194.00
-    - S4 Room Capacity Waste       : 1.00
+=================================================================
+           SCHEDULE CONSTRAINT VERIFICATION AUDIT
+=================================================================
+  [PASSED]  H1 (Room Capacity)               : 0 violations
+  [PASSED]  H2 (Session Separation)          : 0 violations
+  [PASSED]  H3 (Professor Collision)         : 0 collisions
+  [PASSED]  H3 (Professor Limit <= 20)       : 0 overloads
+  [PASSED]  H4 (Room Availability)           : 0 errors
+  [PASSED]  H5 (Section Single Room)         : 0 overlaps
+  [PASSED]  H6 (Room Collision)              : 0 collisions
+-----------------------------------------------------------------
+  Total Hard Violations        : 0
+  Total Soft Penalty Score     : 966.00
+    - S1 (Professor Idle Gaps) : 312.00
+    - S2 (Professor Half-Day)  : 468.00
+    - S3 (Course Half-Day)     : 185.00
+    - S4 (Room Capacity Waste) : 1.00
   Bonus Objectives:
-    - B1 Prof Favorite Satisfied   : 60/60 professors
-    - B2 Unqualified Course Count  : 30 sessions
-======================================================================
-[★] VERIFICATION RESULT: 100% FEASIBLE & VALID ACADEMIC SCHEDULE!
-======================================================================
+    - B1 (Favorite Satisfied)  : 59/60 professors
+    - B2 (Unqualified Sessions): 118
+=================================================================
+  Status: All constraints satisfied. Timetable is 100% feasible.
+=================================================================
 ```
