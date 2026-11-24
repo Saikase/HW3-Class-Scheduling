@@ -3,7 +3,11 @@ University Class Scheduling using Genetic Algorithm
 CO3061 - Introduction to Artificial Intelligence
 Faculty of Computer Science and Engineering - HCMUT
 Instructor: Dr. Nguyen Quoc Minh
-Group 4 - Class CC01
+Class: CC01 | Group: 4
+HW3 Team Members:
+- Nguyễn Trần Vĩ (2353338)
+- Hồ Trọng Trí (2453303)
+- Võ Thành Nguyên Khang (2452483)
 
 Problem Specifications:
 - 60 courses (c01 - c60)

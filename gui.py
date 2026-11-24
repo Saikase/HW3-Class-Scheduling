@@ -1,9 +1,13 @@
 """
-Homework 3: Class Scheduling using Genetic Algorithm
-Tkinter Interactive GUI Visualizer
+University Class Scheduling using Genetic Algorithm
+Desktop GUI Application
 Course: Introduction to Artificial Intelligence (CO3061) - HCMUT
 Instructor: Nguyen Quoc Minh, Ph.D.
 Class: CC01 | Group: 4
+HW3 Team Members:
+- Nguyễn Trần Vĩ (2353338)
+- Hồ Trọng Trí (2453303)
+- Võ Thành Nguyên Khang (2452483)
 """
 
 import os
@@ -126,23 +130,23 @@ class SchedulerGUI:
         self.notebook = ttk.Notebook(right_pane)
         self.notebook.pack(fill="both", expand=True)
 
-        # Tab 1: Timetable Grid Explorer
+        # Tab 1: Timetable Explorer
         self.tab_timetable = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_timetable, text="📅 Timetable Grid Explorer")
+        self.notebook.add(self.tab_timetable, text="Timetable Explorer")
         self._build_timetable_tab()
 
         # Tab 2: Convergence Plot
         self.tab_plot = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_plot, text="📈 Fitness Convergence Plot")
+        self.notebook.add(self.tab_plot, text="Convergence Plot")
         self._build_plot_tab()
 
-        # Tab 3: Exhaustive Audit Log
+        # Tab 3: Verification Audit Log
         self.tab_log = ttk.Frame(self.notebook)
-        self.notebook.add(self.tab_log, text="📋 Verification Audit Log")
+        self.notebook.add(self.tab_log, text="Verification Audit")
         self._build_log_tab()
 
     def _build_control_panel(self, parent):
-        ctrl_frame = ttk.LabelFrame(parent, text="Optimization Controls", padding=10)
+        ctrl_frame = ttk.LabelFrame(parent, text="Algorithm Controls", padding=10)
         ctrl_frame.pack(fill="x", pady=(0, 10))
 
         # Parameters row
@@ -168,13 +172,13 @@ class SchedulerGUI:
         btn_frame = ttk.Frame(ctrl_frame)
         btn_frame.pack(fill="x", pady=(8, 2))
 
-        self.btn_run = ttk.Button(btn_frame, text="▶ Run Evolution", style="Primary.TButton", command=self._start_evolution_thread)
+        self.btn_run = ttk.Button(btn_frame, text="Run Evolution", style="Primary.TButton", command=self._start_evolution_thread)
         self.btn_run.pack(side="left", expand=True, fill="x", padx=2)
 
-        self.btn_step = ttk.Button(btn_frame, text="⏯ Step 1 Gen", command=self._step_once)
+        self.btn_step = ttk.Button(btn_frame, text="Step 1 Gen", command=self._step_once)
         self.btn_step.pack(side="left", expand=True, fill="x", padx=2)
 
-        self.btn_reset = ttk.Button(btn_frame, text="↺ Reset", command=self._reset_problem)
+        self.btn_reset = ttk.Button(btn_frame, text="Reset", command=self._reset_problem)
         self.btn_reset.pack(side="left", expand=True, fill="x", padx=2)
 
         # Action exports
@@ -186,7 +190,7 @@ class SchedulerGUI:
         ttk.Button(act_frame, text="Verify Audit", command=self._run_audit).pack(side="left", expand=True, fill="x", padx=2)
 
     def _build_telemetry_panel(self, parent):
-        tele_frame = ttk.LabelFrame(parent, text="Live Telemetry Dashboard", padding=10)
+        tele_frame = ttk.LabelFrame(parent, text="Optimization Status", padding=10)
         tele_frame.pack(fill="both", expand=True)
 
         # Status badge
@@ -268,7 +272,7 @@ class SchedulerGUI:
 
         top_ctrl = ttk.Frame(container)
         top_ctrl.pack(fill="x", pady=(0, 8))
-        ttk.Button(top_ctrl, text="🔄 Reload Plot Image", command=self._load_plot_image).pack(side="left")
+        ttk.Button(top_ctrl, text="Reload Plot Image", command=self._load_plot_image).pack(side="left")
 
         self.plot_label = tk.Label(container, text="[Convergence plot will render here once evolution completes]", bg="white", relief="sunken")
         self.plot_label.pack(fill="both", expand=True)
